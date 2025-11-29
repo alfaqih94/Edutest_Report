@@ -1,0 +1,783 @@
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Rapor Ujian Akhir Semester</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap");
+      body {
+        font-family: "Inter", sans-serif;
+        background-color: #f3f4f6; /* Light gray background */
+      }
+
+      /* 1. KOREKSI: Sembunyikan header utama (judul Spendubaya) di tampilan web */
+      .main-app-header {
+        display: none !important;
+      }
+
+      /* Class ini hanya untuk menyembunyikan elemen tanda tangan dan tombol cetak dari tampilan web biasa */
+      .hide-on-web {
+        display: none !important;
+      }
+
+      /* 3. BARU: Class untuk menyembunyikan elemen di tampilan web (tapi muncul saat cetak) */
+      .hide-on-display {
+        display: none !important;
+      }
+
+      /* Modal Loading Fullscreen */
+      #loading-modal {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(255, 255, 255, 0.9);
+        z-index: 1000;
+        display: none;
+        justify-content: center;
+        align-items: center;
+        flex-direction: column;
+      }
+
+      /* Area Tanda Tangan */
+      .signature-area {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 4rem;
+        padding: 0 1rem;
+      }
+
+      .signature-block {
+        width: 40%;
+        text-align: center;
+        font-size: 0.8rem;
+      }
+
+      .signature-line {
+        height: 1px;
+        background-color: #000;
+        margin: 2rem 0 0.5rem 0;
+      }
+
+      .signature-placeholder {
+        font-weight: bold;
+      }
+
+      /* Print Styles */
+      @media print {
+        /* 5. OPTIMASI CETAK: Kurangi margin halaman keseluruhan */
+        @page {
+          margin-top: 0.5cm !important;
+          margin-bottom: 0.5cm !important;
+        }
+
+        body {
+          padding-top: 0.5cm;
+          padding-bottom: 0.5cm;
+          background-color: white;
+          color: black;
+          font-size: 11pt; /* Atur font size untuk cetak agar lebih padat */
+        }
+
+        /* Tampilkan kembali header utama (judul Spendubaya) saat dicetak */
+        .main-app-header {
+          display: block !important;
+          margin-bottom: 1rem;
+        }
+
+        /* Sembunyikan semua elemen input, form, dan tombol di mode cetak */
+        .no-print,
+        #input-area,
+        #tab-selector,
+        #print-button-area,
+        #loading-modal {
+          display: none !important;
+        }
+
+        /* 5. OPTIMASI CETAK: Kurangi padding di area Laporan Siswa */
+        #student-report-area {
+          padding-top: 0.25cm !important;
+          padding-bottom: 0.25cm !important;
+        }
+
+        /* 5. OPTIMASI CETAK: Kurangi padding di area Rekap Guru */
+        #teacher-recap-area {
+          padding-top: 0.25cm !important;
+          padding-bottom: 0.25cm !important;
+        }
+
+        /* Tampilkan elemen yang disembunyikan di web, seperti No. Peserta */
+        .hide-on-display {
+          display: flex !important;
+        }
+
+        /* Paksa jeda halaman sebelum area tanda tangan (jika diperlukan) */
+        .page-break-before {
+          page-break-before: always;
+        }
+
+        /* Tampilkan area tanda tangan dan buat display: flex untuk tata letak */
+        .hide-on-web {
+          display: flex !important;
+        }
+
+        .signature-area {
+          /* Pastikan tanda tangan di bawah tabel, tapi jangan dipaksa page break */
+          margin-top: 2rem;
+          page-break-before: auto;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="loading-modal" class="hidden">
+      <svg
+        class="animate-spin -ml-1 mr-3 h-10 w-10 text-blue-600"
+        xmlns="http://www.w3.org/2000/svg"
+        fill="none"
+        viewBox="0 0 24 24"
+      >
+        <circle
+          class="opacity-25"
+          cx="12"
+          cy="12"
+          r="10"
+          stroke="currentColor"
+          stroke-width="4"
+        ></circle>
+        <path
+          class="opacity-75"
+          fill="currentColor"
+          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+        ></path>
+      </svg>
+      <p class="mt-4 text-lg font-semibold text-blue-700">Memuat Data...</p>
+    </div>
+
+    <div class="container mx-auto p-4 md:p-8">
+      <div class="main-app-header text-center mb-6 hidden">
+        <h1 class="text-xl font-extrabold text-gray-800">
+          LAPORAN HASIL UJIAN AKHIR SEMESTER
+        </h1>
+        <p class="text-sm font-semibold text-gray-600">SMPN 2 SUBAYANG</p>
+      </div>
+
+      <div id="tab-selector" class="mb-6 flex justify-center no-print">
+        <button
+          id="student-tab-button"
+          onclick="switchTab('student')"
+          class="px-4 py-2 text-sm font-medium rounded-l-lg bg-blue-600 text-white transition-colors duration-150"
+        >
+          Rapor Siswa
+        </button>
+        <button
+          id="teacher-tab-button"
+          onclick="switchTab('teacher')"
+          class="px-4 py-2 text-sm font-medium rounded-r-lg text-gray-700 hover:bg-gray-100 transition-colors duration-150"
+        >
+          Rekap Guru
+        </button>
+      </div>
+
+      <div id="student-tab" class="max-w-4xl mx-auto">
+        <div
+          id="input-area-student"
+          class="bg-white p-6 rounded-xl shadow-lg no-print mb-8"
+        >
+          <h2 class="text-lg font-semibold mb-4 text-gray-700">
+            Cari Data Rapor Siswa
+          </h2>
+          <div class="flex flex-col sm:flex-row gap-4">
+            <input
+              type="text"
+              id="no-peserta-input"
+              class="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+              placeholder="Masukkan No. Peserta Siswa"
+            />
+            <button
+              onclick="searchStudent()"
+              class="bg-blue-600 text-white p-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors duration-150"
+            >
+              Cari Rapor
+            </button>
+          </div>
+          <p
+            id="student-status-message"
+            class="mt-3 text-sm text-red-500 hidden"
+          >
+            Data siswa tidak ditemukan.
+          </p>
+        </div>
+
+        <div
+          id="student-report-area"
+          class="hidden bg-white p-6 rounded-xl shadow-lg print:shadow-none print:p-0"
+        >
+          <h2
+            class="text-2xl font-bold text-center mb-4 text-gray-800 hidden print:block"
+          >
+            LAPORAN HASIL UJIAN
+          </h2>
+
+          <div
+            class="max-w-3xl mx-auto p-4 bg-blue-50 border border-blue-200 rounded-lg mb-6 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-gray-800"
+          >
+            <div
+              class="flex flex-col sm:flex-row sm:items-center id-nama-siswa-row"
+            >
+              <strong class="w-28 font-semibold">Nama Siswa:</strong>
+              <span
+                id="report-nama-siswa"
+                class="flex-1 text-lg font-extrabold text-blue-700"
+              ></span>
+            </div>
+            <div class="flex flex-col sm:flex-row sm:items-center">
+              <strong class="w-28 font-semibold">Kelas:</strong>
+              <span id="report-kelas" class="flex-1 font-semibold"></span>
+            </div>
+            <div
+              class="flex flex-col sm:flex-row sm:items-center id-wali-kelas-row"
+            >
+              <strong class="w-28 font-semibold">Wali Kelas:</strong>
+              <span id="report-wali-kelas" class="flex-1"></span>
+            </div>
+            <div
+              class="flex flex-col sm:flex-row sm:items-center hide-on-display"
+            >
+              <strong class="w-28 font-semibold">No. Peserta:</strong>
+              <span
+                id="report-no-peserta"
+                class="flex-1 font-mono text-sm"
+              ></span>
+            </div>
+          </div>
+          <div
+            class="overflow-x-auto border border-gray-200 rounded-lg shadow-sm"
+          >
+            <table class="min-w-full divide-y divide-gray-200">
+              <thead class="bg-blue-50">
+                <tr>
+                  <th
+                    class="px-3 sm:px-6 py-3 text-center text-xs font-medium text-blue-700 uppercase tracking-wider border w-[5%]"
+                  >
+                    No.
+                  </th>
+                  <th
+                    class="px-3 sm:px-6 py-3 text-left text-xs font-medium text-blue-700 uppercase tracking-wider border w-[45%]"
+                  >
+                    Mata Pelajaran
+                  </th>
+                  <th
+                    class="px-3 sm:px-6 py-3 text-center text-xs font-medium text-blue-700 uppercase tracking-wider border w-[25%]"
+                  >
+                    Nilai
+                  </th>
+                  <th
+                    class="px-3 sm:px-6 py-3 text-center text-xs font-medium text-blue-700 uppercase tracking-wider border w-[25%]"
+                  >
+                    Status
+                  </th>
+                </tr>
+              </thead>
+              <tbody
+                id="score-report-body"
+                class="bg-white divide-y divide-gray-200"
+              ></tbody>
+              <tfoot class="bg-gray-50 border-t-2 border-gray-300">
+                <tr>
+                  <td
+                    colspan="2"
+                    class="px-3 sm:px-6 py-4 text-right text-base font-extrabold text-gray-900"
+                  >
+                    Rata-Rata Nilai
+                  </td>
+                  <td
+                    id="report-total-score"
+                    class="px-3 sm:px-6 py-4 text-center text-base font-extrabold text-blue-600 border"
+                  >
+                    0
+                  </td>
+                  <td class="border bg-gray-100"></td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+
+          <div class="signature-area hide-on-web">
+            <div class="signature-block">
+              <p>Guru Mata Pelajaran,</p>
+              <div class="signature-line"></div>
+              <p class="signature-placeholder">
+                (.....................................)
+              </p>
+            </div>
+            <div class="signature-block">
+              <p>Wali Kelas,</p>
+              <div class="signature-line"></div>
+              <p class="signature-placeholder">
+                (<span id="ttd-wali-kelas">Nama Wali Kelas</span>)
+              </p>
+            </div>
+          </div>
+
+          <div id="print-button-area" class="mt-8 text-center no-print">
+            <button
+              onclick="window.print()"
+              class="bg-green-600 text-white p-3 rounded-lg font-semibold hover:bg-green-700 transition-colors duration-150"
+            >
+              Cetak Rapor
+            </button>
+          </div>
+        </div>
+      </div>
+      <div id="teacher-tab" class="hidden max-w-6xl mx-auto">
+        <div
+          id="input-area-teacher"
+          class="bg-white p-6 rounded-xl shadow-lg no-print mb-8"
+        >
+          <h2 class="text-lg font-semibold mb-4 text-gray-700">
+            Cari Rekap Nilai Guru
+          </h2>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <input
+              type="text"
+              id="kelas-input"
+              class="p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+              placeholder="Kelas (contoh: 7A)"
+            />
+            <select
+              id="mapel-select"
+              class="p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 bg-white"
+            ></select>
+            <button
+              onclick="searchRecap()"
+              class="bg-blue-600 text-white p-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors duration-150"
+            >
+              Cari Rekap
+            </button>
+          </div>
+          <p
+            id="teacher-status-message"
+            class="mt-3 text-sm text-red-500 hidden"
+          >
+            Data rekap tidak ditemukan.
+          </p>
+        </div>
+
+        <div
+          id="teacher-recap-area"
+          class="hidden bg-white p-6 rounded-xl shadow-lg print:shadow-none print:p-0"
+        >
+          <h2
+            class="text-2xl font-bold text-center mb-4 text-gray-800 hidden print:block"
+          >
+            REKAPITULASI NILAI <span id="recap-mapel-display"></span> KELAS
+            <span id="recap-kelas-display"></span>
+          </h2>
+
+          <div
+            class="overflow-x-auto border border-gray-200 rounded-lg shadow-sm"
+          >
+            <table class="min-w-full divide-y divide-gray-200">
+              <thead class="bg-blue-50">
+                <tr>
+                  <th
+                    class="px-3 sm:px-6 py-3 text-center text-xs font-medium text-blue-700 uppercase tracking-wider border w-12"
+                  >
+                    No.
+                  </th>
+                  <th
+                    class="px-3 sm:px-6 py-3 text-left text-xs font-medium text-blue-700 uppercase tracking-wider border w-32"
+                  >
+                    No. Peserta
+                  </th>
+                  <th
+                    class="px-3 sm:px-6 py-3 text-left text-xs font-medium text-blue-700 uppercase tracking-wider border flex-1"
+                  >
+                    Nama Siswa
+                  </th>
+                  <th
+                    class="px-3 sm:px-6 py-3 text-center text-xs font-medium text-blue-700 uppercase tracking-wider border w-24"
+                  >
+                    Nilai
+                  </th>
+                  <th
+                    class="px-3 sm:px-6 py-3 text-center text-xs font-medium text-blue-700 uppercase tracking-wider border w-24"
+                  >
+                    Status
+                  </th>
+                </tr>
+              </thead>
+              <tbody
+                id="recap-body"
+                class="bg-white divide-y divide-gray-200"
+              ></tbody>
+            </table>
+          </div>
+
+          <div class="signature-area hide-on-web">
+            <div class="signature-block">
+              <p>Guru Mata Pelajaran,</p>
+              <div class="signature-line"></div>
+              <p class="signature-placeholder">
+                (.....................................)
+              </p>
+            </div>
+            <div class="signature-block">
+              <p>Wali Kelas,</p>
+              <div class="signature-line"></div>
+              <p class="signature-placeholder">
+                (<span id="ttd-wali-kelas-rekap">Nama Wali Kelas</span>)
+              </p>
+            </div>
+          </div>
+
+          <div id="print-button-area-teacher" class="mt-8 text-center no-print">
+            <button
+              onclick="window.print()"
+              class="bg-green-600 text-white p-3 rounded-lg font-semibold hover:bg-green-700 transition-colors duration-150"
+            >
+              Cetak Rekap
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // GANTI URL INI DENGAN URL DEPLOYMENT GOOGLE APPS SCRIPT ANDA
+      const GAS_ENDPOINT = "GANTI_DENGAN_URL_GAS_ANDA";
+      const DEFAULT_TEACHER_NAME = "Tidak Ada Data";
+
+      // Peta mata pelajaran: Kunci (untuk JS/GAS) -> Nilai Tampilan
+      const SUBJECT_MAP = {
+        Bahasa_Indonesia: "Bahasa Indonesia",
+        Matematika: "Matematika",
+        IPA: "Ilmu Pengetahuan Alam",
+        IPS: "Ilmu Pengetahuan Sosial",
+        PAI: "Pendidikan Agama Islam dan Budi Pekerti",
+        PPKN: "Pendidikan Pancasila dan Kewarganegaraan",
+        PJOK: "Pendidikan Jasmani, Olahraga, dan Kesehatan",
+        Bahasa_Inggris: "Bahasa Inggris",
+        Seni_Budaya: "Seni Budaya",
+        Informatika: "Informatika",
+        Bahasa_Madura: "Bahasa Madura",
+      };
+
+      // Inisialisasi Tab dan Select Mata Pelajaran
+      document.addEventListener("DOMContentLoaded", () => {
+        // Isi Select Mata Pelajaran
+        const mapelSelect = document.getElementById("mapel-select");
+        mapelSelect.innerHTML = `<option value="">Pilih Mata Pelajaran</option>`;
+        for (const key in SUBJECT_MAP) {
+          const option = document.createElement("option");
+          option.value = key;
+          option.textContent = SUBJECT_MAP[key];
+          mapelSelect.appendChild(option);
+        }
+        switchTab("student"); // Default tab
+      });
+
+      // Fungsi Pembantu
+      function showLoading() {
+        document.getElementById("loading-modal").style.display = "flex";
+      }
+
+      function hideLoading() {
+        document.getElementById("loading-modal").style.display = "none";
+      }
+
+      function hideAllStatusMessages() {
+        document
+          .getElementById("student-status-message")
+          .classList.add("hidden");
+        document
+          .getElementById("teacher-status-message")
+          .classList.add("hidden");
+      }
+
+      // ----------------------------------------------------------------------
+      // FUNGSI RAPOR SISWA
+      // ----------------------------------------------------------------------
+
+      async function searchStudent() {
+        const noPeserta = document
+          .getElementById("no-peserta-input")
+          .value.trim();
+        hideAllStatusMessages();
+        document.getElementById("student-report-area").classList.add("hidden");
+
+        if (!noPeserta) {
+          alert("Mohon masukkan No. Peserta.");
+          return;
+        }
+
+        showLoading();
+
+        try {
+          const url = `${GAS_ENDPOINT}?action=getStudentReport&noPeserta=${encodeURIComponent(
+            noPeserta
+          )}`;
+          const response = await fetch(url);
+          const result = await response.json();
+
+          if (result.status === "success") {
+            renderStudentReport(result.data);
+          } else {
+            document
+              .getElementById("student-status-message")
+              .classList.remove("hidden");
+            document.getElementById("student-status-message").textContent =
+              result.message;
+          }
+        } catch (error) {
+          alert("Terjadi kesalahan saat mencari data.");
+          console.error("Error:", error);
+        } finally {
+          hideLoading();
+        }
+      }
+
+      /**
+       * Mengisi data ke area Rapor Siswa
+       * @param {Object} student Objek data siswa dari Apps Script.
+       */
+      function renderStudentReport(student) {
+        // Isi Identitas Siswa
+        document.getElementById("report-no-peserta").textContent =
+          student.No_Peserta;
+        document.getElementById("report-nama-siswa").textContent =
+          student.Nama_Siswa;
+        document.getElementById("report-kelas").textContent =
+          student.Kelas_Siswa;
+        document.getElementById("report-wali-kelas").textContent =
+          student.Nama_WaliKelas || DEFAULT_TEACHER_NAME;
+        document.getElementById("ttd-wali-kelas").textContent =
+          student.Nama_WaliKelas || DEFAULT_TEACHER_NAME;
+
+        // Siapkan data Nilai
+        let totalScoreSum = 0;
+        const scores = [];
+        let scoreCount = 0;
+
+        for (const key in SUBJECT_MAP) {
+          const score = student[key];
+          if (score !== undefined && score !== null && score !== "") {
+            scores.push({
+              subject: SUBJECT_MAP[key],
+              score: score,
+            });
+            if (typeof score === "number" && !isNaN(score)) {
+              totalScoreSum += score;
+              scoreCount++;
+            }
+          }
+        }
+
+        // Isi Tabel Nilai
+        const scoreBody = document.getElementById("score-report-body");
+        scoreBody.innerHTML = ""; // Bersihkan tabel
+
+        scores.forEach((item, index) => {
+          const row = scoreBody.insertRow();
+          row.className = "hover:bg-gray-50 print:break-inside-avoid";
+
+          // --- 4. LOGIKA STATUS BARU ---
+          const isLulus = item.score >= 70;
+          const scoreStatus = isLulus ? "Lulus" : "Remedi";
+          const scoreColor = isLulus ? "text-green-600" : "text-red-600";
+          // ---------------------------
+
+          let cell = row.insertCell();
+          cell.textContent = index + 1;
+          cell.className =
+            "px-3 sm:px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 border text-center";
+
+          cell = row.insertCell();
+          cell.textContent = item.subject;
+          cell.className =
+            "px-3 sm:px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 border";
+
+          // CELL NILAI
+          cell = row.insertCell();
+          cell.textContent = item.score;
+          cell.className = `px-3 sm:px-6 py-4 whitespace-nowrap text-sm font-bold text-center border ${scoreColor}`;
+
+          // CELL STATUS (BARU)
+          cell = row.insertCell();
+          cell.textContent = scoreStatus;
+          cell.className = `px-3 sm:px-6 py-4 whitespace-nowrap text-sm font-bold text-center border ${scoreColor}`;
+        });
+
+        // Isi Rata-Rata
+        const averageScore =
+          scoreCount > 0 ? (totalScoreSum / scoreCount).toFixed(2) : "N/A";
+        document.getElementById("report-total-score").textContent =
+          averageScore;
+
+        // Tampilkan Area Laporan
+        document
+          .getElementById("student-report-area")
+          .classList.remove("hidden");
+      }
+
+      // ----------------------------------------------------------------------
+      // FUNGSI REKAP GURU
+      // ----------------------------------------------------------------------
+
+      async function searchRecap() {
+        const kelas = document.getElementById("kelas-input").value.trim();
+        const mapelKey = document.getElementById("mapel-select").value;
+
+        hideAllStatusMessages();
+        document.getElementById("teacher-recap-area").classList.add("hidden");
+
+        if (!kelas || !mapelKey) {
+          alert("Mohon isi Kelas dan Mata Pelajaran.");
+          return;
+        }
+
+        showLoading();
+
+        try {
+          const url = `${GAS_ENDPOINT}?action=getRecapReport&kelas=${encodeURIComponent(
+            kelas
+          )}&mapel=${encodeURIComponent(mapelKey)}`;
+          const response = await fetch(url);
+          const result = await response.json();
+
+          if (result.status === "success") {
+            renderTeacherRecap(result.data, kelas, mapelKey);
+          } else {
+            document
+              .getElementById("teacher-status-message")
+              .classList.remove("hidden");
+            document.getElementById("teacher-status-message").textContent =
+              result.message;
+          }
+        } catch (error) {
+          alert("Terjadi kesalahan saat mencari data rekap.");
+          console.error("Error:", error);
+        } finally {
+          hideLoading();
+        }
+      }
+
+      /**
+       * Mengisi data ke area Rekap Guru
+       * @param {Array<Object>} recapData Array data rekap dari Apps Script.
+       * @param {string} kelas Kelas yang dicari.
+       * @param {string} mapelKey Kunci mata pelajaran.
+       */
+      function renderTeacherRecap(recapData, kelas, mapelKey) {
+        // Judul Rekap
+        document.getElementById("recap-kelas-display").textContent = kelas;
+        document.getElementById("recap-mapel-display").textContent =
+          SUBJECT_MAP[mapelKey];
+
+        // Nama Wali Kelas untuk TTD CETAK (Memastikan properti Nama_WaliKelas dari GAS sudah ada)
+        const waliKelasName =
+          recapData.length > 0
+            ? recapData[0].Nama_WaliKelas || DEFAULT_TEACHER_NAME
+            : DEFAULT_TEACHER_NAME;
+        document.getElementById("ttd-wali-kelas-rekap").textContent =
+          waliKelasName;
+
+        // Isi Tabel Rekap
+        const recapBody = document.getElementById("recap-body");
+        recapBody.innerHTML = ""; // Bersihkan tabel
+
+        recapData.forEach((student, index) => {
+          const row = recapBody.insertRow();
+          row.className = "hover:bg-gray-50 print:break-inside-avoid";
+
+          const score = student[mapelKey];
+          // --- 4. LOGIKA STATUS BARU ---
+          const isLulus = score >= 70;
+          const scoreStatus = isLulus ? "Lulus" : "Remedi";
+          const scoreColor = isLulus ? "text-green-600" : "text-red-600";
+          // ---------------------------
+
+          let cell = row.insertCell();
+          cell.textContent = index + 1;
+          cell.className =
+            "px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-700 border text-center";
+
+          cell = row.insertCell();
+          cell.textContent = student.No_Peserta;
+          cell.className =
+            "px-3 sm:px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-700 border";
+
+          cell = row.insertCell();
+          cell.textContent = student.Nama_Siswa;
+          cell.className =
+            "px-3 sm:px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 border";
+
+          // Kolom Nilai
+          cell = row.insertCell();
+          cell.textContent = score;
+          cell.className = `px-3 sm:px-6 py-4 whitespace-nowrap text-sm font-bold border text-center ${scoreColor}`;
+
+          // Kolom Status (BARU)
+          cell = row.insertCell();
+          cell.textContent = scoreStatus;
+          cell.className = `px-3 sm:px-6 py-4 whitespace-nowrap text-sm font-bold border text-center ${scoreColor}`;
+        });
+
+        // Tampilkan Area Rekap
+        document
+          .getElementById("teacher-recap-area")
+          .classList.remove("hidden");
+      }
+
+      // ----------------------------------------------------------------------
+      // FUNGSI NAVIGASI TAB
+      // ----------------------------------------------------------------------
+
+      function switchTab(tabName) {
+        const studentTab = document.getElementById("student-tab");
+        const teacherTab = document.getElementById("teacher-tab");
+        const studentButton = document.getElementById("student-tab-button");
+        const teacherButton = document.getElementById("teacher-tab-button");
+
+        // Reset display
+        studentTab.classList.add("hidden");
+        teacherTab.classList.add("hidden");
+
+        // Reset button classes
+        studentButton.classList.remove(
+          "bg-blue-600",
+          "text-white",
+          "hover:bg-gray-100",
+          "text-gray-700"
+        );
+        teacherButton.classList.remove(
+          "bg-blue-600",
+          "text-white",
+          "hover:bg-gray-100",
+          "text-gray-700"
+        );
+        studentButton.classList.add("text-gray-700", "hover:bg-gray-100");
+        teacherButton.classList.add("text-gray-700", "hover:bg-gray-100");
+
+        if (tabName === "student") {
+          studentTab.classList.remove("hidden");
+          studentButton.classList.add("bg-blue-600", "text-white");
+          studentButton.classList.remove("text-gray-700", "hover:bg-gray-100");
+        } else {
+          teacherTab.classList.remove("hidden");
+          teacherButton.classList.add("bg-blue-600", "text-white");
+          teacherButton.classList.remove("text-gray-700", "hover:bg-gray-100");
+        }
+
+        // Clear previous results when switching tabs
+        document.getElementById("student-report-area").classList.add("hidden");
+        document.getElementById("teacher-recap-area").classList.add("hidden");
+        hideAllStatusMessages();
+      }
+    </script>
+  </body>
+</html>

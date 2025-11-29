@@ -1,0 +1,1111 @@
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Rapor Ujian Akhis Semester</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Inter -->
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap");
+      body {
+        font-family: "Inter", sans-serif;
+        background-color: #f3f4f6; /* Light gray background */
+      }
+
+      /* 1. KOREKSI: Sembunyikan header utama (judul Spendubaya) di tampilan web */
+      .main-app-header {
+        display: none !important;
+      }
+
+      /* Class ini hanya untuk menyembunyikan elemen tanda tangan dan tombol cetak dari tampilan web biasa */
+      .hide-on-web {
+        display: none !important;
+      }
+
+      /* Modal Loading Fullscreen */
+      #loading-modal {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(255, 255, 255, 0.9);
+        z-index: 1000;
+        transition: opacity 0.3s ease;
+      }
+
+      /* Pastikan tab navigation responsif dan mudah disentuh */
+      .tab-button {
+        padding-top: 0.75rem;
+        padding-bottom: 0.75rem;
+        min-height: 48px;
+      }
+
+      /* 1. KOREKSI PENTING: Sembunyikan Header Cetak di Tampilan Web */
+      .print-header {
+        display: none !important;
+      }
+
+      /* --- Custom print styling untuk isolasi laporan --- */
+      @media print {
+        /* Sembunyikan semua elemen interaktif saat mencetak */
+        .no-print,
+        .tab-content > form,
+        #tabs,
+        #message,
+        #splash-screen-container {
+          display: none !important;
+        }
+        #loading-modal {
+          display: none !important;
+          opacity: 0 !important;
+          visibility: hidden !important;
+        }
+        #main-app-container {
+          display: block !important;
+        }
+        /* Tanda tangan menggunakan .hide-on-web di web, tapi harus muncul saat cetak */
+        .hide-on-web {
+          display: block !important;
+        }
+
+        body {
+          background-color: white;
+          margin: 0 !important;
+          padding: 0 !important;
+          color: #000 !important;
+        }
+
+        #student-tab,
+        #teacher-tab {
+          display: none !important;
+          padding: 0 !important;
+          box-shadow: none !important;
+          border: none !important;
+        }
+
+        body.printing-student-report #teacher-tab {
+          display: none !important;
+        }
+        body.printing-teacher-recap #student-tab {
+          display: none !important;
+        }
+
+        body.printing-student-report #student-tab,
+        body.printing-teacher-recap #teacher-tab {
+          display: block !important;
+        }
+        .print-area {
+          display: block !important;
+          width: 100% !important;
+          max-width: none !important;
+          padding: 20px !important;
+          border: none !important;
+        }
+
+        /* 1. KOREKSI PENTING: Tampilkan Header Cetak HANYA saat mencetak */
+        .print-header {
+          display: flex !important;
+          justify-content: space-between;
+          align-items: center;
+          border-bottom: 2px solid #000;
+          padding-bottom: 15px;
+          margin-bottom: 15px;
+        }
+
+        /* 3. Perbesar nama sekolah pada header cetak */
+        .main-print-header-text {
+          text-align: center;
+          flex-grow: 1;
+          margin: 0 1rem;
+        }
+        .main-print-header-text h1 {
+          font-size: 1.5rem; /* Ukuran diperbesar dari 1.25rem */
+          font-weight: 800;
+          margin-bottom: 0;
+          line-height: 1.2;
+        }
+        .main-print-header-text p {
+          font-size: 0.875rem;
+          font-weight: 500;
+          line-height: 1.2;
+        }
+
+        /* Aturan tabel cetak */
+        .print-table {
+          page-break-inside: auto;
+          width: 100%;
+          border-collapse: collapse;
+          margin-top: 10px;
+        }
+        .print-table th,
+        .print-table td {
+          border-color: #000 !important;
+          border-width: 1px !important;
+          padding: 8px;
+        }
+        .print-table thead th {
+          background-color: #eee !important;
+          -webkit-print-color-adjust: exact;
+          color-adjust: exact;
+          text-align: center !important;
+        }
+
+        /* Styles untuk Judul Rekap Guru */
+        .recap-title-container {
+          display: block;
+          text-align: center;
+          margin-bottom: 20px;
+          padding-bottom: 5px;
+        }
+        .recap-title-text {
+          text-align: center;
+        }
+        .recap-title-text h3 {
+          font-size: 1.2rem;
+          font-weight: 900;
+          margin-bottom: 0px;
+          line-height: 1.3;
+        }
+        .recap-title-text p {
+          font-size: 1.2rem;
+          font-weight: 900;
+          margin-bottom: 0;
+          line-height: 1.3;
+        }
+        .recap-kelas-display {
+          display: none;
+        }
+
+        /* Styles untuk Laporan Siswa */
+        .student-report-main-title {
+          text-align: center;
+          font-size: 1.5rem;
+          font-weight: 900;
+          margin-top: 5px;
+          margin-bottom: 5px;
+        }
+
+        /* Nama Siswa Kapital dan Tebal setelah Judul Ujian */
+        #report-nama-siswa-print {
+          text-align: center;
+          font-size: 1.5rem;
+          font-weight: 900;
+          margin-bottom: 20px;
+          text-transform: uppercase;
+          display: block;
+        }
+
+        /* --- TANDA TANGAN SAAT CETAK --- */
+        .signature-area {
+          margin-top: 70px;
+          display: flex !important;
+          justify-content: space-around;
+          width: 100%;
+        }
+        .signature-block {
+          text-align: center;
+          width: 45%;
+        }
+        .signature-block p {
+          font-size: 0.9rem;
+          margin: 0;
+          padding: 0;
+        }
+        /* 2. Hilangkan garis tanda tangan (hanya placeholder agar ada jarak) */
+        .signature-line {
+          margin-top: 50px;
+          border-bottom: 0px; /* Garis dihapus */
+          display: inline-block;
+          width: 100%;
+        }
+        .signature-placeholder {
+          display: inline-block;
+          width: 90%;
+          text-align: center;
+          padding-top: 5px;
+        }
+
+        /* Hilangkan elemen nama siswa dan wali kelas di kotak identitas saat cetak */
+        body.printing-student-report #report-nama-siswa,
+        body.printing-student-report #report-wali-kelas {
+          display: none !important;
+        }
+        body.printing-student-report .id-nama-siswa-row,
+        body.printing-student-report .id-wali-kelas-row {
+          display: none !important;
+        }
+      }
+    </style>
+  </head>
+  <body class="min-h-screen">
+    <!-- Modal Loading -->
+    <div
+      id="loading-modal"
+      class="hidden flex flex-col justify-center items-center"
+    >
+      <div
+        class="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-blue-600"
+      ></div>
+      <p class="text-blue-700 font-semibold mt-4 text-lg">
+        Memproses dan Memuat Data
+      </p>
+      <p class="text-gray-500 mt-2">Mohon tunggu sebentars</p>
+    </div>
+
+    <!-- 1. SPLASH SCREEN BARU -->
+    <div
+      id="splash-screen-container"
+      class="flex flex-col hidden items-center justify-center min-h-screen p-8 text-center bg-white"
+    >
+      <div
+        class="w-full max-w-md p-8 bg-white rounded-xl shadow-2xl border border-gray-100"
+      >
+        <!-- Header/Logo Area -->
+        <div class="mb-8">
+          <!-- Placeholder Logo Sekolah -->
+          <img
+            src="assets/logo_1.png"
+            alt="Logo Sekolah"
+            class="mx-auto w-32 h-32 object-contain rounded-full mb-4 shadow-lg"
+            onerror="this.onerror=null;this.src='https://placehold.co/150x150/1d4ed8/ffffff?text=LOGO';"
+          />
+          <h1 class="text-2xl font-extrabold text-blue-800 sm:text-3xl">
+            UPTD SMP NEGERI 2 AROSBAYA
+          </h1>
+          <p class="text-md text-gray-600 mt-1 font-medium">
+            Jl. Raya Batonaong No. 01 Arosbaya Bangkalan
+          </p>
+        </div>
+
+        <!-- Title Section -->
+        <div class="mb-10 p-4 bg-blue-50 rounded-lg border border-blue-200">
+          <h2
+            class="text-3xl font-black text-blue-900 tracking-tight sm:text-4xl"
+          >
+            RAPOR UJIAN
+          </h2>
+          <p class="text-xl font-semibold text-gray-700 mt-2">
+            Semester Ganjil
+            <br />
+            Tahun 2025-2026
+          </p>
+        </div>
+
+        <!-- Tombol Masuk -->
+        <button
+          id="btn-masuk"
+          onclick="enterApp()"
+          class="w-full py-3 px-6 bg-blue-600 text-white text-lg font-bold rounded-xl shadow-lg hover:bg-blue-700 transition duration-300 transform hover:scale-[1.01]"
+        >
+          Masuk ke Aplikasi
+        </button>
+      </div>
+      <p class="mt-8 text-sm text-gray-500">
+        Alfaqih Tech <br />
+        Version 1.10.10.1 - Stable
+      </p>
+    </div>
+
+    <!-- 2. MAIN APP CONTAINER: Disembunyikan secara default -->
+    <div
+      id="main-app-container"
+      class="hidden max-w-7xl mx-auto p-4 sm:p-6 lg:p-8"
+    >
+      <!-- Tab Navigation (Responsif) -->
+      <div
+        id="tabs"
+        class="mb-6 flex space-x-2 p-1 bg-white rounded-xl shadow-md"
+      >
+        <button
+          id="tab-student"
+          class="tab-button flex-1 py-3 px-4 text-sm font-medium rounded-lg transition-colors duration-200 bg-blue-600 text-white"
+          onclick="showTab('student')"
+        >
+          Rapor Siswa
+        </button>
+        <button
+          id="tab-teacher"
+          class="tab-button flex-1 py-3 px-4 text-sm font-medium rounded-lg transition-colors duration-200 text-gray-700 hover:bg-gray-100"
+          onclick="showTab('teacher')"
+        >
+          Rapor Mata Pelajaran
+        </button>
+      </div>
+
+      <!-- Notification Area -->
+      <div
+        id="message"
+        class="hidden p-4 mb-6 text-sm rounded-lg"
+        role="alert"
+      ></div>
+
+      <!-- Results Container -->
+      <div id="results-container">
+        <!-- 1. Student Search Tab -->
+        <div
+          id="student-tab"
+          class="tab-content bg-white p-4 sm:p-6 shadow-xl rounded-xl"
+        >
+          <h2
+            class="text-xl font-semibold mb-4 text-blue-700 no-print items-center"
+          >
+            Laporan Hasil Ujian Siswa
+          </h2>
+          <!-- Form -->
+          <form
+            id="student-form"
+            class="flex flex-col sm:flex-row gap-4 mb-6 no-print"
+          >
+            <input
+              type="number"
+              id="no-peserta"
+              placeholder="Masukkan No. Peserta (e.g., 001)"
+              class="flex-grow p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+              required
+            />
+            <button
+              type="submit"
+              class="bg-blue-600 text-white p-3 rounded-lg font-medium hover:bg-blue-700 transition duration-150 shadow-md"
+            >
+              Cek Rapor
+            </button>
+          </form>
+
+          <!-- Student Report Display Area -->
+          <div
+            id="student-report-area"
+            class="hidden mt-6 print-area p-4 sm:p-6 border border-gray-200 rounded-lg"
+          >
+            <!-- Header Cetak: Tersembunyi di web, tampil saat dicetak -->
+            <div class="print-header">
+              <!-- Placeholder Logo Kiri -->
+              <img
+                src="assets/logo_2.png"
+                alt="Logo Kiri"
+                class="w-20 h-20 object-contain"
+                onerror="this.onerror=null;this.src='https://placehold.co/80x80/003366/ffffff?text=LOGO+KIRI';"
+              />
+              <div class="main-print-header-text">
+                <!-- Teks ini diperbesar di CSS media print -->
+                <h1>UPTD SMP NEGERI 2 AROSBAYA</h1>
+                <p>Jl. Raya Batonaong 1 Batonaong Arosbaya</p>
+              </div>
+              <!-- Placeholder Logo Kanan -->
+              <img
+                src="assets/logo_1.png"
+                alt="Logo Kanan"
+                class="w-20 h-20 object-contain"
+                onerror="this.onerror=null;this.src='https://placehold.co/80x80/660000/ffffff?text=LOGO+KANAN';"
+              />
+            </div>
+
+            <div class="student-report-main-title">LAPORAN HASIL UJIAN</div>
+            <span id="report-nama-siswa-print"></span>
+
+            <!-- Tombol Cetak (no-print) -->
+            <button
+              onclick="printStudentReport()"
+              class="no-print mb-6 bg-green-600 text-white p-3 rounded-lg font-medium hover:bg-green-700 transition duration-150 shadow-md w-full sm:w-auto"
+            >
+              Cetak Laporan
+            </button>
+
+            <!-- Identitas Siswa -->
+            <div
+              class="p-4 bg-blue-50 border border-blue-200 rounded-lg mb-6 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-gray-800"
+            >
+              <div class="flex flex-col sm:flex-row sm:items-center">
+                <strong class="w-28 font-semibold">No. Peserta:</strong>
+                <span
+                  id="report-no-peserta"
+                  class="flex-1 font-mono text-sm"
+                ></span>
+              </div>
+              <div class="flex flex-col sm:flex-row sm:items-center">
+                <strong class="w-28 font-semibold">Kelas:</strong>
+                <span id="report-kelas" class="flex-1 font-semibold"></span>
+              </div>
+              <div
+                class="flex flex-col sm:flex-row sm:items-center id-nama-siswa-row"
+              >
+                <strong class="w-28 font-semibold">Nama Siswa:</strong>
+                <span
+                  id="report-nama-siswa"
+                  class="flex-1 text-lg font-extrabold text-blue-700"
+                ></span>
+              </div>
+              <div
+                class="flex flex-col sm:flex-row sm:items-center id-wali-kelas-row"
+              >
+                <strong class="w-28 font-semibold">Wali Kelas:</strong>
+                <span id="report-wali-kelas" class="flex-1"></span>
+              </div>
+            </div>
+
+            <h3 class="text-lg font-semibold mb-3 text-gray-800 border-b pb-1">
+              Daftar Nilai
+            </h3>
+            <!-- Table -->
+            <div class="overflow-x-auto">
+              <table
+                class="min-w-full divide-y divide-gray-200 print-table shadow-sm rounded-lg"
+              >
+                <thead class="bg-blue-50">
+                  <tr>
+                    <th
+                      class="px-3 sm:px-6 py-3 text-center text-xs font-medium text-blue-700 uppercase tracking-wider border w-1/12"
+                    >
+                      No.
+                    </th>
+                    <th
+                      class="px-3 sm:px-6 py-3 text-left text-xs font-medium text-blue-700 uppercase tracking-wider border"
+                    >
+                      Mata Pelajaran
+                    </th>
+                    <th
+                      class="px-3 sm:px-6 py-3 text-center text-xs font-medium text-blue-700 uppercase tracking-wider border w-1/4"
+                    >
+                      Nilai
+                    </th>
+                  </tr>
+                </thead>
+                <tbody
+                  id="student-score-body"
+                  class="bg-white divide-y divide-gray-200"
+                >
+                  <!-- Data nilai akan dimasukkan di sini oleh JS -->
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Tanda Tangan - Disembunyikan di Web (hide-on-web), Hanya tampil saat cetak -->
+            <div class="signature-area hide-on-web">
+              <div class="signature-block">
+                <p>Wali Murid,</p>
+                <!-- Garis TTD dihapus di CSS -->
+                <div class="signature-line"></div>
+                <p class="signature-placeholder">(....................)</p>
+              </div>
+              <div class="signature-block">
+                <p>Wali Kelas,</p>
+                <!-- Garis TTD dihapus di CSS -->
+                <div class="signature-line"></div>
+                <p class="signature-placeholder">
+                  (<span id="ttd-wali-kelas-siswa">Nama Wali Kelas</span>)
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. Teacher Recap Tab -->
+        <div
+          id="teacher-tab"
+          class="tab-content hidden bg-white p-4 sm:p-6 shadow-xl rounded-xl"
+        >
+          <h2 class="text-xl font-semibold mb-4 text-blue-700 no-print">
+            Rekap Hasil Ujian Guru
+          </h2>
+          <!-- Form -->
+          <form
+            id="teacher-form"
+            class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6 no-print"
+          >
+            <select
+              type="text"
+              id="recap-kelas"
+              class="p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 col-span-1"
+              required
+            >
+              <option value="">Pilih Kelas</option>
+              <option value="VII-A">VII-A</option>
+              <option value="VII-B">VII-B</option>
+              <option value="VIII-A">VIII-A</option>
+              <option value="VIII-B">VIII-B</option>
+              <option value="IX-A">IX-A</option>
+              <option value="IX-B">IX-B</option>
+            </select>
+            <!-- Mapel selector -->
+            <select
+              type="text"
+              id="recap-mapel"
+              class="col-span-1 md:col-span-2 p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+              required
+            >
+              <option value="">Pilih Mata Pelajaran</option>
+              <option value="Bahasa_Indonesia">Bahasa Indonesia</option>
+              <option value="Matematika">Matematika</option>
+              <option value="IPA">Ilmu Pengetahuan Alam</option>
+              <option value="IPS">Ilmu Pengetahan Sosial</option>
+              <option value="PAI">
+                Pendidikan Agama Islam dan Budi Pekerti
+              </option>
+              <option value="PPKN">
+                Pendidikan Pancasila dan Kewarganegaraan
+              </option>
+              <option value="PJOK">
+                Pendidikan Jasmani, Olahraga, dan Kesehatan
+              </option>
+              <option value="Bahasa_Inggris">Bahasa Inggris</option>
+              <option value="Seni_Budaya">Seni Budaya</option>
+              <option value="Informatika">Informatika</option>
+              <option value="Bahasa_Madura">Bahasa Madura</option>
+            </select>
+            <button
+              type="submit"
+              class="bg-blue-600 text-white p-3 rounded-lg font-medium hover:bg-blue-700 transition duration-150 shadow-md col-span-1"
+            >
+              Tampilkan Rekap
+            </button>
+          </form>
+
+          <!-- Teacher Recap Display Area -->
+          <div
+            id="teacher-recap-area"
+            class="hidden mt-6 print-area p-4 sm:p-6 border border-gray-200 rounded-lg"
+          >
+            <!-- Header Cetak: Tersembunyi di web, tampil saat dicetak -->
+            <div class="print-header">
+              <!-- Placeholder Logo Kiri -->
+              <img
+                src="https://placehold.co/80x80/003366/ffffff?text=LOGO+KIRI"
+                alt="Logo Kiri"
+                class="w-20 h-20 object-contain"
+                onerror="this.onerror=null;this.src='https://placehold.co/80x80/003366/ffffff?text=LOGO+KIRI';"
+              />
+              <div class="main-print-header-text">
+                <!-- Teks ini diperbesar di CSS media print -->
+                <h1>UPTD SMP NEGERI 2 AROSBAYA</h1>
+                <p>Jl. Raya Batonaong 1 Batonaong Arosbaya</p>
+              </div>
+              <!-- Placeholder Logo Kanan -->
+              <img
+                src="https://placehold.co/80x80/660000/ffffff?text=LOGO+KANAN"
+                alt="Logo Kanan"
+                class="w-20 h-20 object-contain"
+                onerror="this.onerror=null;this.src='https://placehold.co/80x80/660000/ffffff?text=LOGO+KANAN';"
+              />
+            </div>
+
+            <!-- Tombol Cetak (no-print) -->
+            <button
+              onclick="printTeacherRecap()"
+              class="no-print mb-6 bg-green-600 text-white p-3 rounded-lg font-medium hover:bg-green-700 transition duration-150 shadow-md w-full sm:w-auto"
+            >
+              Cetak Rekap Guru
+            </button>
+
+            <!-- Judul Rekap Nilai & Mapel di tengah -->
+            <div class="recap-title-container">
+              <div class="recap-title-text">
+                <h3>
+                  REKAP NILAI KELAS <span id="recap-display-kelas"></span>
+                </h3>
+                <p>MATA PELAJARAN: <span id="recap-display-mapel"></span></p>
+              </div>
+              <div class="recap-kelas-display">
+                Kelas: <span id="recap-display-kelas-hidden"></span>
+              </div>
+            </div>
+
+            <!-- Table -->
+            <div class="overflow-x-auto">
+              <table
+                class="min-w-full divide-y divide-gray-200 print-table shadow-sm rounded-lg"
+              >
+                <thead class="bg-blue-50">
+                  <tr>
+                    <th
+                      class="px-3 sm:px-6 py-3 text-center text-xs font-medium text-blue-700 uppercase tracking-wider border w-1/12"
+                    >
+                      No.
+                    </th>
+                    <th
+                      class="px-3 sm:px-6 py-3 text-center text-xs font-medium text-blue-700 uppercase tracking-wider border"
+                    >
+                      No. Peserta
+                    </th>
+                    <th
+                      class="px-3 sm:px-6 py-3 text-left text-xs font-medium text-blue-700 uppercase tracking-wider border w-2/4"
+                    >
+                      Nama Siswa
+                    </th>
+                    <th
+                      class="px-3 sm:px-6 py-3 text-center text-xs font-medium text-blue-700 uppercase tracking-wider border w-1/4"
+                    >
+                      Nilai
+                    </th>
+                  </tr>
+                </thead>
+                <tbody
+                  id="teacher-recap-body"
+                  class="bg-white divide-y divide-gray-200"
+                >
+                  <!-- Data rekap akan dimasukkan di sini oleh JS -->
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Tanda Tangan - Disembunyikan di Web (hide-on-web), Hanya tampil saat cetak -->
+            <div class="signature-area hide-on-web">
+              <div class="signature-block">
+                <p>Guru Mata Pelajaran,</p>
+                <!-- Garis TTD dihapus di CSS -->
+                <div class="signature-line"></div>
+                <p class="signature-placeholder">(....................)</p>
+              </div>
+              <div class="signature-block">
+                <p>Wali Kelas,</p>
+                <!-- Garis TTD dihapus di CSS -->
+                <div class="signature-line"></div>
+                <p class="signature-placeholder">
+                  (<span id="ttd-wali-kelas-rekap">Nama Wali Kelas</span>)
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+              // Endpoint Google Apps Script yang sudah ada (tidak diubah)
+              const GAS_ENDPOINT =
+                "https://script.google.com/macros/s/AKfycbx5cYC7XDypuNNm9M-AnB1sHjpyJJcbmdCaRCnceTMywNZLn7qDA3N2BsBL2OKQwA0P/exec";
+
+              // Peta untuk mengubah kunci mapel menjadi nama yang mudah dibaca
+              const SUBJECT_MAP = {
+                Bahasa_Indonesia: "BAHASA INDONESIA",
+                Matematika: "MATEMATIKA",
+                IPA: "ILMU PENGETAHUAN ALAM",
+                IPS: "ILMU PENGETAHAN SOSIAL",
+                PAI: "PENDIDIKAN AGAMA ISLAM DAN BUDI PEKERTI",
+                PPKN: "PENDIDIKAN PANCASILA DAN KEWARGANEGARAAN",
+                PJOK: "PENDIDIKAN JASMANI, OLAHRAGA, DAN KESEHATAN",
+                Bahasa_Inggris: "BAHASA INGGRIS",
+                Seni_Budaya: "SENI BUDAYA",
+                Informatika: "INFORMATIKA",
+                Bahasa_Madura: "BAHASA MADURA",
+              };
+
+              const DEFAULT_TEACHER_NAME = "Nama Wali Kelas";
+
+              // --- Utility Functions ---
+
+              function showMessage(type, content) {
+                const messageEl = document.getElementById("message");
+                messageEl.className =
+                  "p-4 mb-6 text-sm rounded-lg no-print " +
+                  (type === "error"
+                    ? "bg-red-100 text-red-800"
+                    : "bg-green-100 text-green-800");
+                messageEl.textContent = content;
+                messageEl.classList.remove("hidden");
+              }
+
+              function hideMessage() {
+                document.getElementById("message").classList.add("hidden");
+              }
+
+              function setLoading(isLoading) {
+                const loadingModal = document.getElementById("loading-modal");
+                const tabs = document.getElementById("tabs");
+
+                loadingModal.classList.toggle("hidden", !isLoading);
+
+                // Menonaktifkan interaksi saat loading
+                if (tabs) {
+                  tabs.classList.toggle("pointer-events-none", isLoading);
+                  tabs.classList.toggle("opacity-50", isLoading);
+                }
+                const studentForm = document.getElementById("student-form");
+                if (studentForm)
+                  studentForm.classList.toggle("pointer-events-none", isLoading);
+                const teacherForm = document.getElementById("teacher-form");
+                if (teacherForm)
+                  teacherForm.classList.toggle("pointer-events-none", isLoading);
+              }
+
+              // --- App Transition Logic (BARU) ---
+
+              function enterApp() {
+                document
+                  .getElementById("splash-screen-container")
+                  .classList.add("hidden");
+                document
+                  .getElementById("main-app-container")
+                  .classList.remove("hidden");
+                showTab("student"); // Tampilkan tab default setelah masuk
+              }
+
+              // --- Print Logic ---
+
+              function printReport(reportType) {
+                const body = document.body;
+
+                body.classList.remove(
+                  "printing-student-report",
+                  "printing-teacher-recap"
+                );
+
+                // Logika untuk menampilkan tanda tangan HANYA saat mencetak
+                const signatureAreaStudent = document
+                  .getElementById("student-report-area")
+                  .querySelector(".signature-area");
+                const signatureAreaTeacher = document
+                  .getElementById("teacher-recap-area")
+                  .querySelector(".signature-area");
+
+                if (reportType === "student") {
+                  signatureAreaStudent.classList.remove("hide-on-web");
+                  body.classList.add("printing-student-report");
+                } else if (reportType === "teacher") {
+                  signatureAreaTeacher.classList.remove("hide-on-web");
+                  body.classList.add("printing-teacher-recap");
+                }
+
+                // Tunggu sebentar untuk memastikan DOM sudah ter-render ulang sebelum mencetak
+                setTimeout(() => {
+                  window.print();
+
+                  // Sembunyikan kembali setelah cetak (memastikan tanda tangan tidak muncul di web view)
+                  signatureAreaStudent.classList.add("hide-on-web");
+                  signatureAreaTeacher.classList.add("hide-on-web");
+                  body.classList.remove(
+                    "printing-student-report",
+                    "printing-teacher-recap"
+                  );
+                }, 200);
+              }
+
+              function printStudentReport() {
+                printReport("student");
+              }
+
+              function printTeacherRecap() {
+                printReport("teacher");
+              }
+
+              // --- Data Fetching Logic (Tidak Berubah) ---
+
+              async function fetchData(params) {
+                const url = new URL(GAS_ENDPOINT);
+                Object.keys(params).forEach((key) =>
+                  url.searchParams.append(key, params[key])
+                );
+
+                setLoading(true);
+                hideMessage();
+                try {
+                  const maxRetries = 3;
+                  let delay = 1000;
+                  for (let i = 0; i < maxRetries; i++) {
+                    const response = await fetch(url.toString(), {
+                      method: "GET",
+                      redirect: "follow",
+                      cache: "no-cache",
+                    });
+
+                    if (response.ok) {
+                      const contentType = response.headers.get("content-type");
+                      if (
+                        contentType &&
+                        contentType.indexOf("application/json") !== -1
+                      ) {
+                        return await response.json();
+                      } else {
+                        const errorText = await response.text();
+                        console.error("Apps Script Error Response:", errorText);
+                        throw new Error(
+                          `Respons tidak valid. Mungkin terjadi kesalahan di Apps Script. Status: ${response.status}`
+                        );
+                      }
+                    }
+
+                    if (response.status === 429 && i < maxRetries - 1) {
+                      await new Promise((resolve) => setTimeout(resolve, delay));
+                      delay *= 2;
+                    } else {
+                      throw new Error(
+                        `Gagal mengambil data. Kode Status: ${response.status}`
+                      );
+                    }
+                  }
+                  throw new Error(
+                    "Gagal mengambil data setelah beberapa kali percobaan."
+                  );
+                } catch (error) {
+                  console.error("Fetch Error:", error);
+                  showMessage(
+                    "error",
+                    `Terjadi kesalahan saat mengambil data: ${error.message}.`
+                  );
+                  return null;
+                } finally {
+                  setLoading(false);
+                }
+              }
+
+              // --- Student Tab Logic ---
+
+              document
+                .getElementById("student-form")
+                .addEventListener("submit", async (e) => {
+                  e.preventDefault();
+                  document
+                    .getElementById("student-report-area")
+                    .classList.add("hidden");
+
+                  const noPeserta = document.getElementById("no-peserta").value.trim();
+                  if (!noPeserta) return;
+
+                  const params = { action: "getStudentReport", noPeserta: noPeserta };
+                  const result = await fetchData(params);
+
+                  if (result && result.status === "success" && result.data) {
+                    renderStudentReport(result.data);
+                    showMessage("success", "Data siswa berhasil ditemukan!");
+                  } else if (result && result.status === "not_found") {
+                    showMessage("error", `No. Peserta "${noPeserta}" tidak ditemukan.`);
+                    document
+                      .getElementById("student-report-area")
+                      .classList.add("hidden");
+                  } else {
+                    document
+                      .getElementById("student-report-area")
+                      .classList.add("hidden");
+                  }
+                });
+
+              function renderStudentReport(student) {
+                // Data Identitas (di kotak biru)
+                document.getElementById("report-no-peserta").textContent =
+                  student.No_Peserta;
+                document.getElementById("report-kelas").textContent =
+                  student.Kelas_Siswa;
+
+                // Nama Siswa dan Wali Kelas hanya untuk TAMPILAN WEB
+                document.getElementById("report-nama-siswa").textContent =
+                  student.Nama_Siswa;
+                document.getElementById("report-wali-kelas").textContent =
+                  student.Nama_WaliKelas;
+
+                // Nama Siswa untuk JUDUL CETAK
+                document.getElementById("report-nama-siswa-print").textContent =
+                  student.Nama_Siswa;
+
+                // Nama Wali Kelas untuk TTD CETAK (Sudah robust)
+                document.getElementById("ttd-wali-kelas-siswa").textContent =
+                  student.Nama_WaliKelas || DEFAULT_TEACHER_NAME;
+
+                const scoreBody = document.getElementById("student-score-body");
+                scoreBody.innerHTML = "";
+
+                const scores = Object.keys(student)
+                  .filter((key) => SUBJECT_MAP[key])
+                  .map((key) => ({
+                    subject: SUBJECT_MAP[key],
+                    score: student[key],
+                  }));
+
+                scores.forEach((item, index) => {
+                  const row = scoreBody.insertRow();
+                  row.className = "hover:bg-gray-50";
+
+                  const cellNo = row.insertCell();
+                  cellNo.textContent = index + 1;
+                  cellNo.className =
+                    "px-3 sm:px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 border text-center";
+
+                  const cellSubject = row.insertCell();
+                  cellSubject.textContent = item.subject;
+                  cellSubject.className =
+                    "px-3 sm:px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 border";
+
+                  const cellScore = row.insertCell();
+                  cellScore.textContent = item.score;
+                  cellScore.className = `px-3 sm:px-6 py-4 whitespace-nowrap text-sm font-bold text-center border ${
+                    item.score < 70 ? "text-red-600" : "text-green-600"
+                  }`;
+                });
+
+                document
+                  .getElementById("student-report-area")
+                  .classList.remove("hidden");
+              }
+
+              // --- Teacher Tab Logic ---
+
+              document
+                .getElementById("teacher-form")
+                .addEventListener("submit", async (e) => {
+                  e.preventDefault();
+                  document.getElementById("teacher-recap-area").classList.add("hidden");
+
+                  const kelas = document.getElementById("recap-kelas").value;
+                  const mapel = document.getElementById("recap-mapel").value;
+
+                  if (!kelas || !mapel) {
+                    showMessage("error", "Mohon pilih Kelas dan Mata Pelajaran.");
+                    return;
+                  }
+
+                  const params = {
+                    action: "getRecapReport",
+                    kelas: kelas,
+                    mapel: mapel,
+                  };
+                  const result = await fetchData(params);
+
+                  if (result && result.status === "success" && result.data) {
+                    renderTeacherRecap(result.data, kelas, mapel);
+                    showMessage(
+                      "success",
+                      `Rekap nilai ${SUBJECT_MAP[mapel]} untuk kelas ${kelas} berhasil dimuat.`
+                    );
+                  } else if (result && result.status === "not_found") {
+                    showMessage(
+                      "error",
+                      `Data untuk Kelas ${kelas} dan Mapel ${SUBJECT_MAP[mapel]} tidak ditemukan.`
+                    );
+                    document
+                      .getElementById("teacher-recap-area")
+                      .classList.add("hidden");
+                  } else {
+                    document
+                      .getElementById("teacher-recap-area")
+                      .classList.add("hidden");
+                  }
+                });
+
+              function renderTeacherRecap(recapData, kelas, mapelKey) {
+                // Judul Rekap
+                document.getElementById("recap-display-kelas").textContent = kelas;
+                document.getElementById("recap-display-mapel").textContent =
+                  SUBJECT_MAP[mapelKey];
+
+                // Nama Wali Kelas untuk TTD CETAK - KOREKSI: Gunakan OR (||) untuk fallback jika data kosong/null
+                const waliKelasName =
+                  recapData.length > 0
+                    ? recapData[0].Nama_WaliKelas || DEFAULT_TEACHER_NAME
+                    : DEFAULT_TEACHER_NAME;
+                document.getElementById("ttd-wali-kelas-rekap").textContent =
+                  waliKelasName;
+
+                const recapBody = document.getElementById("teacher-recap-body");
+                recapBody.innerHTML = "";
+
+                if (recapData.length === 0) {
+                  const row = recapBody.insertRow();
+                  const cell = row.insertCell();
+                  cell.colSpan = 4;
+                  cell.className = "px-6 py-4 text-center text-sm text-gray-500 border";
+                  cell.textContent =
+                    "Tidak ada data siswa ditemukan untuk kriteria ini.";
+                  document
+                    .getElementById("teacher-recap-area")
+                    .classList.remove("hidden");
+                  return;
+                }
+
+                recapData.forEach((student, index) => {
+                  const row = recapBody.insertRow();
+                  row.className = "hover:bg-gray-50";
+
+                  let cell = row.insertCell();
+                  cell.textContent = index + 1;
+                  cell.className =
+                    "px-3 sm:px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 border text-center";
+
+                  cell = row.insertCell();
+                  cell.textContent = student.No_Peserta;
+                  cell.className =
+                    "px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-700 border text-center";
+
+                  cell = row.insertCell();
+                  cell.textContent = student.Nama_Siswa;
+                  cell.className =
+                    "px-3 sm:px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 border";
+
+                  const score = student[mapelKey];
+                  cell = row.insertCell();
+                  cell.textContent = score;
+                  cell.className = `px-3 sm:px-6 py-4 whitespace-nowrap text-sm font-bold border text-center ${
+                    score < 70 ? "text-red-600" : "text-green-600"
+                  }`;
+                });
+
+                document
+                  .getElementById("teacher-recap-area")
+                  .classList.remove("hidden");
+              }
+
+              // --- Tab Control Logic ---
+
+              function showTab(tabName) {
+                const studentTab = document.getElementById("student-tab");
+                const teacherTab = document.getElementById("teacher-tab");
+                const studentButton = document.getElementById("tab-student");
+                const teacherButton = document.getElementById("tab-teacher");
+
+                studentTab.classList.add("hidden");
+                teacherTab.classList.add("hidden");
+                studentButton.classList.remove(
+                  "bg-blue-600",
+                  "text-white",
+                  "hover:bg-gray-100",
+                  "text-gray-700"
+                );
+                teacherButton.classList.remove(
+                  "bg-blue-600",
+                  "text-white",
+                  "hover:bg-gray-100",
+                  "text-gray-700"
+                );
+                studentButton.classList.add("text-gray-700", "hover:bg-gray-100");
+                teacherButton.classList.add("text-gray-700", "hover:bg-gray-100");
+
+                if (tabName === "student") {
+                  studentTab.classList.remove("hidden");
+                  studentButton.classList.add("bg-blue-600", "text-white");
+                  studentButton.classList.remove("text-gray-700", "hover:bg-gray-100");
+                } else {
+                  teacherTab.classList.remove("hidden");
+                  teacherButton.classList.add("bg-blue-600", "text-white");
+                  teacherButton.classList.remove("text-gray-700", "hover:bg-gray-100");
+                }
+
+                // Clear previous results when switching tabs
+                document.getElementById("student-report-area").classList.add("hidden");
+                document.getElementById("teacher-recap-area").classList.add("hidden");
+                hideMessage();
+              }
+
+              // INISIALISASI
+              // Penting: Di awal, kita hanya menampilkan splash screen. Main app tersembunyi.
+              window.onload = () => {
+                document.getElementById("loading-modal").classList.add("hidden");
+                document
+                  .getElementById("splash-screen-container")
+                  .classList.remove("hidden");
+                document.getElementById("main-app-container").classList.add("hidden");
+              };
+              window.matchMedia('print').addEventListener('change', (m) => {
+            if (m.matches) {
+              // Mode print ON
+              document.getElementById('splash-screen-container')?.classList.add('hidden');
+              document.getElementById('main-app-container')?.classList.remove('hidden');
+            }
+            document.getElementById("btn-masuk").addEventListener("click", function () {
+          try {
+              enterApp();
+          } catch (e) {
+              console.error("enterApp error:", e);
+          }
+      });
+    </script>
+  </body>
+</html>

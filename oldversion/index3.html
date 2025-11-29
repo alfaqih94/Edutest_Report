@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Rapor Ujian Akhir Semester</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Firebase SDK Modules -->
+    <script type="module">
+      import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+      import {
+        getAuth,
+        signInAnonymously,
+        signInWithCustomToken,
+        onAuthStateChanged,
+      } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+      import {
+        getFirestore,
+        setLogLevel,
+        collection,
+        query,
+        where,
+        getDocs,
+      } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+      // Pastikan variabel global ada
+      const appId =
+        typeof __app_id !== "undefined" ? __app_id : "default-app-id";
+      const firebaseConfig = JSON.parse(
+        typeof __firebase_config !== "undefined" && __firebase_config !== ""
+          ? __firebase_config
+          : "{}"
+      );
+      const initialAuthToken =
+        typeof __initial_auth_token !== "undefined"
+          ? __initial_auth_token
+          : null;
+
+      // Inisialisasi Firebase
+      let app, db, auth;
+      let userId = null;
+
+      if (Object.keys(firebaseConfig).length === 0) {
+        console.error(
+          "Konfigurasi Firebase (firebaseConfig) kosong atau tidak valid."
+        );
+        // Tampilkan pesan error di UI jika memungkinkan
+      } else {
+        app = initializeApp(firebaseConfig);
+        db = getFirestore(app);
+        auth = getAuth(app);
+        // Set level log untuk membantu debugging
+        setLogLevel("debug");
+        console.log("Firebase berhasil diinisialisasi.");
+      }
+
+      // Path Koleksi Data (Menggunakan jalur publik/bersama)
+      const RAPOR_COLLECTION_PATH = `/artifacts/${appId}/public/data/rapor_siswa`;
+
+      // --- UTILITY FUNCTIONS ---
+
+      /** Menampilkan pesan notifikasi di bawah header utama */
+      function showMessage(message, type = "info") {
+        const messageBox = document.getElementById("app-message");
+        messageBox.textContent = message;
+        messageBox.classList.remove(
+          "hidden",
+          "bg-red-100",
+          "bg-green-100",
+          "bg-yellow-100"
+        );
+
+        switch (type) {
+          case "error":
+            messageBox.classList.add("bg-red-100", "text-red-700");
+            break;
+          case "success":
+            messageBox.classList.add("bg-green-100", "text-green-700");
+            break;
+          case "info":
+          default:
+            messageBox.classList.add("bg-yellow-100", "text-yellow-700");
+            break;
+        }
+      }
+
+      /** Menyembunyikan pesan notifikasi */
+      function hideMessage() {
+        document.getElementById("app-message").classList.add("hidden");
+      }
+
+      /** Menampilkan modal loading */
+      function showLoading(text = "Memuat...") {
+        const modal = document.getElementById("loading-modal");
+        document.getElementById("loading-text").textContent = text;
+        modal.classList.remove("hidden");
+      }
+
+      /** Menyembunyikan modal loading */
+      function hideLoading() {
+        document.getElementById("loading-modal").classList.add("hidden");
+      }
+
+      /** Mengambil dan menampilkan data rapor dari Firestore */
+      async function fetchUASData(currentUserId) {
+        showLoading("Memuat data rapor...");
+        try {
+          // Log informasi kueri
+          console.log(
+            `Mencoba mengambil data dari: ${RAPOR_COLLECTION_PATH} untuk userId: ${currentUserId}`
+          );
+
+          // Kueri: Ambil dokumen berdasarkan field 'userId' yang cocok
+          const q = query(
+            collection(db, RAPOR_COLLECTION_PATH),
+            where("userId", "==", currentUserId)
+          );
+          const querySnapshot = await getDocs(q);
+
+          hideLoading();
+
+          if (querySnapshot.empty) {
+            showMessage(
+              `Tidak ada data rapor ditemukan untuk User ID: ${currentUserId}. Pastikan User ID dan path koleksi sudah benar.`,
+              "info"
+            );
+            // Sembunyikan area laporan jika kosong
+            document
+              .getElementById("student-report-area")
+              .classList.add("hidden");
+            return;
+          }
+
+          // Data ditemukan
+          const reportData = querySnapshot.docs.map((doc) => ({
+            id: doc.id,
+            ...doc.data(),
+          }));
+          console.log("Data Rapor Berhasil Diambil:", reportData);
+
+          // --- LOGIKA RENDERING DATA (Sederhana) ---
+          // Kita akan merender data pertama yang ditemukan sebagai contoh
+          const firstReport = reportData[0];
+
+          let reportContent = `<h3 class="text-2xl font-extrabold text-blue-700 mb-6">Laporan Ujian Akhir Semester</h3>`;
+          reportContent += `<div class="p-4 bg-white rounded-lg shadow-md mb-4 border border-blue-200">`;
+          reportContent += `<p><span class="font-semibold">User ID (Untuk Debug):</span> ${currentUserId}</p>`;
+          reportContent += `<p><span class="font-semibold">Jumlah Dokumen Ditemukan:</span> ${reportData.length}</p>`;
+
+          if (firstReport) {
+            reportContent += `<h4 class="font-bold mt-4 text-lg">Detail Data Pertama:</h4>`;
+            // Tampilkan beberapa field penting. Asumsikan ada field 'nama' dan 'nilai_mtk'
+            reportContent += `<p>Nama Siswa: ${firstReport.nama || "N/A"}</p>`;
+            reportContent += `<p>Nilai Matematika (Contoh): ${
+              firstReport.nilai_mtk || "N/A"
+            }</p>`;
+          }
+
+          reportContent += `</div>`;
+          reportContent += `<div class="mt-4 text-sm text-gray-500">
+                              <p>Jika Anda melihat detail data di atas, artinya koneksi dan pengambilan data berhasil.
+                              Jika detail kosong/tidak relevan, periksa struktur data di Firestore.</p>
+                          </div>`;
+
+          document.getElementById("student-report-area").innerHTML =
+            reportContent;
+          document
+            .getElementById("student-report-area")
+            .classList.remove("hidden");
+          showMessage("Data rapor berhasil dimuat dan ditampilkan!", "success");
+        } catch (error) {
+          console.error("Kesalahan saat mengambil data rapor:", error);
+          showMessage(
+            `Gagal mengambil data rapor. Coba lagi atau periksa koneksi. (Error: ${error.message})`,
+            "error"
+          );
+          hideLoading();
+        }
+      }
+
+      /** Fungsi utama untuk masuk ke aplikasi */
+      async function enterApp() {
+        if (!auth) {
+          showMessage(
+            "Aplikasi gagal diinisialisasi. Periksa konfigurasi Firebase.",
+            "error"
+          );
+          return;
+        }
+
+        showLoading("Mengautentikasi...");
+        hideMessage();
+
+        try {
+          // 1. Autentikasi
+          if (initialAuthToken) {
+            await signInWithCustomToken(auth, initialAuthToken);
+          } else {
+            // Jika token tidak ada, gunakan autentikasi anonim sebagai fallback
+            await signInAnonymously(auth);
+          }
+
+          // 2. Verifikasi User ID
+          userId = auth.currentUser?.uid;
+          if (!userId) {
+            throw new Error(
+              "Gagal mendapatkan User ID setelah autentikasi. Autentikasi gagal."
+            );
+          }
+
+          console.log("Autentikasi berhasil. User ID:", userId);
+
+          // 3. Update UI
+          document
+            .getElementById("splash-screen-container")
+            .classList.add("hidden");
+          document
+            .getElementById("main-app-container")
+            .classList.remove("hidden");
+          document.getElementById(
+            "current-user-id"
+          ).textContent = `User ID: ${userId}`;
+
+          // 4. Ambil Data
+          await fetchUASData(userId);
+        } catch (error) {
+          console.error(
+            "Kesalahan dalam proses Autentikasi atau Memuat Data:",
+            error
+          );
+          showMessage(
+            `Gagal memuat aplikasi. Coba lagi atau hubungi administrator. (Error: ${error.message})`,
+            "error"
+          );
+
+          // Pastikan tetap di splash screen jika gagal total
+          document
+            .getElementById("splash-screen-container")
+            .classList.remove("hidden");
+          document.getElementById("main-app-container").classList.add("hidden");
+        } finally {
+          hideLoading();
+        }
+      }
+
+      // --- INI SCRIPT UTAMA ---
+      window.onload = () => {
+        // Sembunyikan loading modal (splash awal)
+        hideLoading();
+        // Tampilkan splash screen
+        document
+          .getElementById("splash-screen-container")
+          .classList.remove("hidden");
+        document.getElementById("main-app-container").classList.add("hidden");
+
+        // Attach event listener to the enter button
+        const enterButton = document.getElementById("btn-masuk");
+        if (enterButton) {
+          enterButton.addEventListener("click", function () {
+            enterApp();
+          });
+        }
+      };
+
+      // Tambahkan listener untuk mode print
+      window.matchMedia("print").addEventListener("change", (m) => {
+        if (m.matches) {
+          // Mode print ON, pastikan tampilan utama terlihat untuk dicetak
+          document
+            .getElementById("splash-screen-container")
+            ?.classList.add("hidden");
+          document
+            .getElementById("main-app-container")
+            ?.classList.remove("hidden");
+        }
+      });
+    </script>
+    <!-- Font Inter -->
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap");
+      body {
+        font-family: "Inter", sans-serif;
+        background-color: #f3f4f6; /* Light gray background */
+      }
+
+      /* 1. KOREKSI: Sembunyikan header utama (judul Spendubaya) di tampilan web */
+      .main-app-header {
+        display: none !important;
+      }
+
+      /* Class ini hanya untuk menyembunyikan elemen tanda tangan dan tombol cetak dari tampilan web biasa */
+      .hide-on-web {
+        display: none !important;
+      }
+
+      /* Modal Loading Fullscreen */
+      #loading-modal {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(255, 255, 255, 0.9);
+        z-index: 50;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        flex-direction: column;
+      }
+      .loader {
+        border: 4px solid #f3f3f3;
+        border-top: 4px solid #3b82f6; /* Blue */
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        animation: spin 1s linear infinite;
+        margin-bottom: 1rem;
+      }
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+
+      /* Gaya untuk tampilan cetak */
+      @media print {
+        /* Sembunyikan semua elemen non-rapor saat mencetak */
+        .hide-on-print {
+          display: none !important;
+        }
+
+        /* Pastikan elemen rapor terlihat penuh */
+        .print-area {
+          width: 100%;
+          padding: 0;
+          margin: 0;
+          box-shadow: none;
+        }
+
+        /* Tampilkan elemen tanda tangan dan tombol cetak yang disembunyikan di web */
+        .hide-on-web {
+          display: block !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Modal Loading (Awalnya Muncul) -->
+    <div id="loading-modal" class="hidden">
+      <div class="loader"></div>
+      <p id="loading-text" class="text-blue-600 font-semibold">Memuat...</p>
+    </div>
+
+    <!-- Container Splash Screen (Halaman Awal) -->
+    <div
+      id="splash-screen-container"
+      class="hidden min-h-screen flex items-center justify-center bg-white p-4"
+    >
+      <div
+        class="max-w-md w-full text-center p-8 bg-white rounded-xl shadow-2xl"
+      >
+        <h1 class="text-3xl font-extrabold text-blue-600 mb-4">
+          Aplikasi Rapor UAS
+        </h1>
+        <p class="text-gray-600 mb-6">
+          Selamat datang di sistem pelaporan nilai ujian akhir semester. Silakan
+          klik tombol di bawah untuk masuk dan melihat data rapor Anda.
+        </p>
+        <button
+          id="btn-masuk"
+          class="w-full py-3 px-4 bg-blue-600 text-white font-bold rounded-lg shadow-lg hover:bg-blue-700 transition duration-300"
+        >
+          Masuk Aplikasi
+        </button>
+      </div>
+    </div>
+
+    <!-- Container Aplikasi Utama -->
+    <div id="main-app-container" class="hidden min-h-screen p-4 sm:p-8">
+      <div class="max-w-4xl mx-auto">
+        <!-- Header dan Pesan Aplikasi -->
+        <header class="bg-white p-4 rounded-xl shadow-md mb-4 hide-on-print">
+          <h2 class="text-xl font-bold text-gray-800">Panel Rapor Siswa</h2>
+          <p id="current-user-id" class="text-sm text-gray-500 mt-1">
+            User ID: N/A
+          </p>
+        </header>
+
+        <!-- Kotak Pesan Dinamis (Info/Error) -->
+        <div
+          id="app-message"
+          class="hidden p-3 rounded-lg font-medium mb-4 text-center"
+        >
+          Pesan muncul di sini
+        </div>
+
+        <!-- Area Laporan Siswa (Main Content) -->
+        <div
+          id="student-report-area"
+          class="print-area bg-white p-6 rounded-xl shadow-xl mb-8 hidden"
+        >
+          <!-- Konten rapor akan dimasukkan di sini oleh fetchUASData() -->
+          <p class="text-gray-500">Memuat data...</p>
+        </div>
+
+        <!-- Tombol Cetak (Hanya Muncul di tampilan web) -->
+        <div class="text-center hide-on-print">
+          <button
+            onclick="window.print()"
+            class="py-2 px-6 bg-green-600 text-white font-bold rounded-lg shadow-lg hover:bg-green-700 transition duration-300"
+          >
+            Cetak Rapor Ini
+          </button>
+        </div>
+
+        <!-- Placeholder untuk Tanda Tangan (Hanya Muncul saat dicetak) -->
+        <div class="hide-on-web mt-12 p-4">
+          <div class="flex justify-between text-sm">
+            <div class="w-1/3 text-center">
+              <p>Mengetahui,</p>
+              <p class="font-semibold">Kepala Sekolah</p>
+              <div class="h-20"></div>
+              <!-- Ruang Tanda Tangan -->
+              <p>(...............................)</p>
+            </div>
+            <div class="w-1/3 text-center">
+              <p>Wali Kelas,</p>
+              <div class="h-20"></div>
+              <!-- Ruang Tanda Tangan -->
+              <p>(...............................)</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
