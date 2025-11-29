@@ -1,35 +1,81 @@
-/**
- * File: Code.gs
- * Deskripsi: Backend untuk "Spendubaya Edutest Report" menggunakan Google Apps Script.
- * Script ini berfungsi sebagai API untuk mengambil data hasil ujian dari Google Sheet.
- *
- * PENTING:
- * 1. Pastikan nama Sheet data Anda adalah "HasilUjian"
- * 2. Pastikan struktur kolom sesuai:
- * A: No_Peserta, B: Nama_Siswa, C: Kelas_Siswa, D: Nama_WaliKelas
- * E-O: 11 Mata Pelajaran
- */
-
-// Peta Mata Pelajaran (sesuai urutan kolom E sampai O, index 4 sampai 14)
 const SUBJECT_MAP = {
-  4: "Bahasa_Indonesia",
-  5: "Matematika",
-  6: "IPA",
-  7: "IPS",
-  8: "PAI",
-  9: "PPKN",
-  10: "PJOK",
-  11: "Bahasa_Inggris",
-  12: "Seni_Budaya",
-  13: "Informatika",
-  14: "Bahasa_Madura",
+  // Gunakan nama kolom yang disingkat (tanpa spasi) sebagai kunci di JS
+  // Angka indeks kolom 4-14 tidak perlu di sini, tapi di fungsi getStudentReport
+  Bahasa_Indonesia: "Bahasa Indonesia",
+  Matematika: "Matematika",
+  IPA: "Ilmu Pengetahuan Alam",
+  IPS: "Ilmu Pengetahuan Sosial",
+  PAI: "Pendidikan Agama Islam dan Budi Pekerti",
+  PPKN: "Pendidikan Pancasila dan Kewarganegaraan",
+  PJOK: "Pendidikan Jasmani, Olahraga, dan Kesehatan",
+  Bahasa_Inggris: "Bahasa Inggris",
+  Seni_Budaya: "Seni Budaya",
+  Informatika: "Informatika",
+  Bahasa_Madura: "Bahasa Madura",
 };
 
+// Peta konstanta yang menghubungkan kunci singkat (JS) ke Index Kolom (Sheet HasilUjian)
+// Kolom A=0, B=1, C=2, D=3, E=4, dst.
+const COL_INDEX_MAP = {
+  No_Peserta: 0,
+  Nama_Siswa: 1,
+  Kelas_Siswa: 2,
+  Nama_WaliKelas: 3,
+  // Mata Pelajaran (E-O = Index 4-14)
+  Bahasa_Indonesia: 4,
+  Matematika: 5,
+  IPA: 6,
+  IPS: 7,
+  PAI: 8,
+  PPKN: 9,
+  PJOK: 10,
+  Bahasa_Inggris: 11,
+  Seni_Budaya: 12,
+  Informatika: 13,
+  Bahasa_Madura: 14,
+};
+
+//-------------------------------------------------------------
+// FUNGSI BARU: Mengambil data Wali Kelas dari DataBase_Utama
+//-------------------------------------------------------------
 /**
- * =================================================================
- * FUNGSI SETUP AWAL: Membuat sheet dan header secara otomatis
- * =================================================================
+ * Mengambil pasangan Kelas dan Wali Kelas dari sheet DataBase_Utama.
+ * @returns {Object} Peta (Map) dengan kunci: Nama Kelas, Nilai: Nama Wali Kelas.
  */
+function getWaliKelasMap() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName("DataBase_Utama");
+
+  if (!sheet) {
+    Logger.log("Sheet 'DataBase_Utama' tidak ditemukan.");
+    return {};
+  }
+
+  const lastRow = sheet.getLastRow();
+  if (lastRow <= 1) return {};
+
+  // Asumsi header di DataBase_Utama adalah Kolom A: Kelas, Kolom B: Wali_Kelas
+  // Ambil data (A2:B terakhir)
+  const range = sheet.getRange(2, 1, lastRow - 1, 2);
+  const data = range.getValues();
+
+  const waliKelasMap = {};
+  data.forEach((row) => {
+    const kelas = row[0] ? row[0].toString().trim().toUpperCase() : "";
+    const waliKelas = row[1] ? row[1].toString().trim() : "";
+
+    if (kelas && waliKelas) {
+      waliKelasMap[kelas] = waliKelas;
+    }
+  });
+
+  return waliKelasMap;
+}
+
+//-------------------------------------------------------------
+// FUNGSI UTAMA / SETUP
+//-------------------------------------------------------------
+
 function Setup_awal() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheetName = "HasilUjian";
@@ -49,19 +95,19 @@ function Setup_awal() {
     "No_Peserta",
     "Nama_Siswa",
     "Kelas_Siswa",
-    "Nama_WaliKelas",
+    "Nama_WaliKelas", // <-- Kolom ini akan diisi di Sheet HasilUjian jika ada data
     // Mata Pelajaran (sesuai urutan E-O)
-    "Bahasa Indonesia",
+    "Bahasa_Indonesia",
     "Matematika",
-    "Ilmu Pengetahuan Alam",
-    "Ilmu Pengetahuan Sosial",
-    "Pendidikan Agama Islam dan Budi Pekerti",
-    "Pendidikan Pancasila dan Kewarganegaraan",
-    "Pendidikan Jasmani, Olahraga, dan Kesehatan",
-    "Bahasa Inggris",
-    "Seni Budaya",
+    "IPA",
+    "IPS",
+    "PAI",
+    "PPKN",
+    "PJOK",
+    "Bahasa_Inggris",
+    "Seni_Budaya",
     "Informatika",
-    "Bahasa Madura",
+    "Bahasa_Madura",
   ];
 
   // 4. Masukkan header ke Baris 1
@@ -81,13 +127,8 @@ function Setup_awal() {
   );
 }
 
-/**
- * Fungsi utama untuk menangani permintaan HTTP GET.
- * Berfungsi sebagai router API.
- * @param {Object} e Event object dari permintaan HTTP.
- * @returns {GoogleAppsScript.Content.TextOutput} Output JSON.
- */
 function doGet(e) {
+  // ... (tidak ada perubahan signifikan pada doGet) ...
   const action = e.parameter.action;
 
   // Menambahkan pengamanan dasar jika sheet belum ada
@@ -127,11 +168,10 @@ function doGet(e) {
   }
 }
 
-/**
- * Mengambil data siswa berdasarkan No_Peserta.
- * @param {string} noPeserta No. Peserta Siswa.
- * @returns {Object} Data siswa atau not_found status.
- */
+//-------------------------------------------------------------
+// FUNGSI getStudentReport
+//-------------------------------------------------------------
+
 function getStudentReport(noPeserta) {
   if (!noPeserta) {
     return { status: "error", message: "Parameter No_Peserta harus diisi." };
@@ -153,7 +193,9 @@ function getStudentReport(noPeserta) {
 
   // Kolom No_Peserta berada di index 0 (Kolom A)
   const studentData = data.find(
-    (row) => row[0].toString().trim() === noPeserta.toString().trim()
+    (row) =>
+      row[COL_INDEX_MAP.No_Peserta].toString().trim() ===
+      noPeserta.toString().trim()
   );
 
   if (!studentData) {
@@ -161,35 +203,33 @@ function getStudentReport(noPeserta) {
   }
 
   const report = {
-    No_Peserta: studentData[0],
-    Nama_Siswa: studentData[1],
-    Kelas_Siswa: studentData[2],
-    Nama_WaliKelas: studentData[3],
+    No_Peserta: studentData[COL_INDEX_MAP.No_Peserta],
+    Nama_Siswa: studentData[COL_INDEX_MAP.Nama_Siswa],
+    Kelas_Siswa: studentData[COL_INDEX_MAP.Kelas_Siswa],
+    Nama_WaliKelas: studentData[COL_INDEX_MAP.Nama_WaliKelas], // Ambil dari kolom D
   };
 
   // Loop untuk nilai mata pelajaran (index 4 sampai 14)
-  for (let i = 4; i <= 14; i++) {
-    const subjectKey = SUBJECT_MAP[i];
-    // Pastikan nilai dikonversi ke Number jika memungkinkan
-    const rawValue = studentData[i];
-    const score =
-      typeof rawValue === "number"
-        ? rawValue
-        : rawValue
-        ? parseFloat(rawValue)
-        : null;
-    report[subjectKey] = score !== null && !isNaN(score) ? score : ""; // Atur nilai kosong ke string kosong
+  for (const subjectKey in SUBJECT_MAP) {
+    const index = COL_INDEX_MAP[subjectKey];
+    if (index !== undefined) {
+      const rawValue = studentData[index];
+      const score =
+        typeof rawValue === "number"
+          ? rawValue
+          : rawValue
+          ? parseFloat(rawValue)
+          : null;
+      report[subjectKey] = score !== null && !isNaN(score) ? score : "";
+    }
   }
 
   return { status: "success", data: report };
 }
 
-/**
- * Mengambil rekap nilai untuk mata pelajaran dan kelas tertentu.
- * @param {string} kelas Kelas Siswa.
- * @param {string} mapel Kunci Mata Pelajaran (e.g., Bahasa_Indonesia).
- * @returns {Object} Array data rekap atau not_found status.
- */
+//-------------------------------------------------------------
+// FUNGSI getRecapReport (DIPERBAIKI)
+//-------------------------------------------------------------
 function getRecapReport(kelas, mapel) {
   if (!kelas || !mapel) {
     return {
@@ -212,23 +252,29 @@ function getRecapReport(kelas, mapel) {
   const range = sheet.getRange(2, 1, lastRow - 1, lastCol);
   const data = range.getValues();
 
+  // 🟢 PERBAIKAN 1: Ambil map Wali Kelas dari sheet DataBase_Utama
+  const waliKelasMap = getWaliKelasMap();
+  const kelasUpper = kelas.toString().trim().toUpperCase();
+
+  // 🟢 PERBAIKAN 2: Ambil Nama Wali Kelas berdasarkan Kelas yang difilter
+  // Ini akan digunakan untuk TTD Rekap
+  const namaWaliKelas =
+    waliKelasMap[kelasUpper] || "Nama Wali Kelas Belum Ditetapkan";
+
   // Tentukan index kolom mata pelajaran
-  const subjectIndex = Object.keys(SUBJECT_MAP).find(
-    (key) => SUBJECT_MAP[key] === mapel
-  );
-  if (!subjectIndex) {
+  const mapelColIndex = COL_INDEX_MAP[mapel];
+  if (mapelColIndex === undefined) {
     return { status: "error", message: "Kunci mata pelajaran tidak valid." };
   }
-  const mapelColIndex = parseInt(subjectIndex); // Konversi kembali ke integer
 
   const recapData = [];
 
   // Kolom Kelas berada di index 2 (Kolom C)
   data.forEach((row) => {
     if (
-      row[2] &&
-      row[2].toString().trim().toUpperCase() ===
-        kelas.toString().trim().toUpperCase()
+      row[COL_INDEX_MAP.Kelas_Siswa] &&
+      row[COL_INDEX_MAP.Kelas_Siswa].toString().trim().toUpperCase() ===
+        kelasUpper
     ) {
       const rawValue = row[mapelColIndex];
       const score =
@@ -239,10 +285,12 @@ function getRecapReport(kelas, mapel) {
           : null;
 
       recapData.push({
-        No_Peserta: row[0],
-        Nama_Siswa: row[1],
-        Kelas_Siswa: row[2],
-        [mapel]: score !== null && !isNaN(score) ? score : "", // Atur nilai kosong ke string kosong
+        No_Peserta: row[COL_INDEX_MAP.No_Peserta],
+        Nama_Siswa: row[COL_INDEX_MAP.Nama_Siswa],
+        Kelas_Siswa: row[COL_INDEX_MAP.Kelas_Siswa],
+        // 🟢 PERBAIKAN 3: Sisipkan Nama Wali Kelas dari map
+        Nama_WaliKelas: namaWaliKelas,
+        [mapel]: score !== null && !isNaN(score) ? score : "",
       });
     }
   });
@@ -257,11 +305,6 @@ function getRecapReport(kelas, mapel) {
   return { status: "success", data: recapData };
 }
 
-/**
- * Fungsi pembantu untuk membuat output JSON dengan header yang tepat.
- * @param {Object} data Objek data yang akan dikonversi menjadi JSON.
- * @returns {GoogleAppsScript.Content.TextOutput} Output JSON.
- */
 function createJsonOutput(data) {
   return ContentService.createTextOutput(JSON.stringify(data)).setMimeType(
     ContentService.MimeType.JSON
