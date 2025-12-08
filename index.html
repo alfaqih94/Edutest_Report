@@ -1315,7 +1315,7 @@
           .filter((key) => SUBJECT_MAP[key])
           .map((key) => ({
             subject: SUBJECT_MAP[key],
-            score: student[key],
+            score: Math.round(Number(student[key])),
           }));
 
         scores.forEach((item, index) => {
@@ -1335,7 +1335,7 @@
           const cellScore = row.insertCell();
           cellScore.textContent = item.score;
           cellScore.className = `px-3 sm:px-6 py-4 whitespace-nowrap text-sm font-bold text-center border ${
-            item.score < 70 ? "text-red-600" : "text-green-600"
+            item.score < 65 ? "text-red-600" : "text-green-600"
           }`;
         });
 
@@ -1437,11 +1437,12 @@
           cell.className =
             "px-3 sm:px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 border";
 
-          const score = student[mapelKey];
+          const scoreRaw = student[mapelKey];
+          const score = Math.round(Number(scoreRaw));
           cell = row.insertCell();
           cell.textContent = score;
           cell.className = `px-3 sm:px-6 py-4 whitespace-nowrap text-sm font-bold border text-center ${
-            score < 70 ? "text-red-600" : "text-green-600"
+            score < 65 ? "text-red-600" : "text-green-600"
           }`;
         });
 
